@@ -39,6 +39,7 @@ import {
 } from 'lucide-react';
 import { toast } from 'react-hot-toast';
 import SupportChat from '../components/SupportChat';
+import { logger } from '../utils/logger';
 
 interface LinkedAccount {
   user_id: string; // username from registration or verification
@@ -158,20 +159,20 @@ const UserDashboardPage: React.FC = () => {
   const fetchEightBallPoolAvatars = useCallback(async () => {
     setIsLoadingAvatars(true);
     try {
-      console.log('🔄 Fetching 8BP avatars from:', API_ENDPOINTS.USER_LIST_8BP_AVATARS);
+      logger.debug('🔄 Fetching 8BP avatars from:', API_ENDPOINTS.USER_LIST_8BP_AVATARS);
       const response = await axios.get(API_ENDPOINTS.USER_LIST_8BP_AVATARS, {
         withCredentials: true
       });
-      console.log('✅ 8BP avatars response:', response.data);
+      logger.debug('✅ 8BP avatars response:', response.data);
       if (response.data.success) {
         const avatars = response.data.avatars || [];
-        console.log('✅ Setting 8BP avatars:', avatars.length, 'avatars');
+        logger.debug('✅ Setting 8BP avatars:', avatars.length, 'avatars');
         setEightBallPoolAvatars(avatars);
       } else {
-        console.error('❌ 8BP avatars API returned success: false');
+        logger.error('❌ 8BP avatars API returned success: false');
       }
     } catch (error) {
-      console.error('❌ Error fetching 8 Ball Pool avatars:', error);
+      logger.error('❌ Error fetching 8 Ball Pool avatars:', error);
       toast.error('Failed to load avatars');
     } finally {
       setIsLoadingAvatars(false);
@@ -182,7 +183,6 @@ const UserDashboardPage: React.FC = () => {
     try {
       // Add timestamp to force fresh request
       const url = `${API_ENDPOINTS.USER_LINKED_ACCOUNTS}?_t=${Date.now()}`;
-      console.log('🔍 Fetching linked accounts from:', url);
       const response = await axios.get(url, {
         withCredentials: true,
         headers: {
@@ -191,20 +191,9 @@ const UserDashboardPage: React.FC = () => {
           'Expires': '0'
         }
       });
-      console.log('📥 Linked accounts API response:', JSON.stringify(response.data, null, 2));
-      console.log('📊 Response success:', response.data.success);
-      console.log('📊 Account count from API:', response.data.accounts?.length || 0);
-      console.log('📊 Accounts array:', response.data.accounts);
       
       if (response.data.success) {
         const accounts = response.data.accounts || [];
-        console.log('✅ Setting linked accounts:', accounts);
-        console.log('✅ Account count being set:', accounts.length);
-        console.log('✅ Accounts being set:', accounts.map((a: any) => ({
-          username: a.username,
-          eightBallPoolId: a.eightBallPoolId,
-          dateLinked: a.dateLinked
-        })));
         // When setting linked accounts, preserve optimistic toggle state if it exists
         // This prevents refresh from overwriting a toggle that just happened
         setLinkedAccounts(prevAccounts => {
@@ -224,16 +213,6 @@ const UserDashboardPage: React.FC = () => {
                 const avatarUrlChanged = prevAccount.activeAvatarUrl !== account.activeAvatarUrl;
                 
                 if (toggleStateChanged || (recentlyUpdated && avatarUrlChanged)) {
-                  console.log(`🔄 Preserving optimistic toggle state for ${account.eightBallPoolId}`, {
-                    prev_use_discord_avatar: prevAccount.use_discord_avatar,
-                    server_use_discord_avatar: account.use_discord_avatar,
-                    prev_activeAvatarUrl: prevAccount.activeAvatarUrl,
-                    server_activeAvatarUrl: account.activeAvatarUrl,
-                    recentlyUpdated,
-                    timeSinceLastUpdate
-                  });
-                  
-                  // Preserve all optimistic state: toggle flag, avatar URL, and related fields
                   return {
                     ...account,
                     use_discord_avatar: prevAccount.use_discord_avatar,
@@ -265,12 +244,12 @@ const UserDashboardPage: React.FC = () => {
         
         return accounts;
       } else {
-        console.error('❌ API returned success=false:', response.data);
+        logger.error('❌ API returned success=false:', response.data);
         return null;
       }
     } catch (error: any) {
-      console.error('❌ Error fetching linked accounts:', error);
-      console.error('❌ Error response:', error.response?.data);
+      logger.error('Error fetching linked accounts:', error);
+      toast.error('Failed to load linked accounts');
       return null;
     }
   }, [selectedAccountId, lastAvatarUpdateTime, isTogglingAvatar]);
@@ -282,11 +261,11 @@ const UserDashboardPage: React.FC = () => {
       });
       if (response.data.success) {
         setScreenshots(response.data.screenshots);
-        // Update refresh key to force image reload
         setScreenshotRefreshKey(Date.now());
       }
     } catch (error) {
-      console.error('Error fetching screenshots:', error);
+      logger.error('Error fetching screenshots:', error);
+      toast.error('Failed to load screenshots');
     }
   }, []);
 
@@ -299,7 +278,8 @@ const UserDashboardPage: React.FC = () => {
         setDeregistrationRequests(response.data.requests);
       }
     } catch (error) {
-      console.error('Error fetching deregistration requests:', error);
+      logger.error('Error fetching deregistration requests:', error);
+      toast.error('Failed to load deregistration requests');
     }
   }, []);
 
@@ -309,7 +289,6 @@ const UserDashboardPage: React.FC = () => {
         withCredentials: true
       });
       if (response.data.success) {
-        // Backend returns user, currentIp, lastLoginAt at top level
         setUserInfo({
           ...response.data.user,
           currentIp: response.data.currentIp || 'Unknown',
@@ -317,7 +296,8 @@ const UserDashboardPage: React.FC = () => {
         });
       }
     } catch (error) {
-      console.error('Error fetching user info:', error);
+      logger.error('Error fetching user info:', error);
+      toast.error('Failed to load user info');
     }
   }, []);
 
@@ -331,7 +311,7 @@ const UserDashboardPage: React.FC = () => {
         setVerificationImages(response.data.verificationImages || []);
       }
     } catch (error) {
-      console.error('Error fetching verification images:', error);
+      logger.error('Error fetching verification images:', error);
       toast.error('Failed to load verification images');
     } finally {
       setIsLoadingVerificationImages(false);
@@ -367,13 +347,13 @@ const UserDashboardPage: React.FC = () => {
 
     // Don't auto-refresh if we're currently uploading - trust the API response instead
     if (isUploadingAvatar) {
-      console.log('⏸️ Skipping auto-refresh - avatar upload in progress');
+      logger.debug('⏸️ Skipping auto-refresh - avatar upload in progress');
       return;
     }
 
     // Don't auto-refresh if we're currently toggling - trust the optimistic update
     if (isTogglingAvatar) {
-      console.log('⏸️ Skipping auto-refresh - avatar toggle in progress');
+      logger.debug('⏸️ Skipping auto-refresh - avatar toggle in progress');
       return;
     }
 
@@ -381,12 +361,12 @@ const UserDashboardPage: React.FC = () => {
     // Extended to 5 seconds to match state preservation window and prevent race conditions
     const timeSinceLastUpdate = Date.now() - lastAvatarUpdateTime;
     if (timeSinceLastUpdate < 5000) {
-      console.log(`⏸️ Skipping auto-refresh - avatar was just updated ${timeSinceLastUpdate}ms ago`);
+      logger.debug(`⏸️ Skipping auto-refresh - avatar was just updated ${timeSinceLastUpdate}ms ago`);
       return;
     }
 
     if (shouldRefreshAvatars) {
-      console.log('🔄 Auto-refreshing linked accounts from WebSocket event');
+      logger.debug('🔄 Auto-refreshing linked accounts from WebSocket event');
       fetchLinkedAccounts();
       consumeRefreshAvatars();
     }
@@ -395,7 +375,7 @@ const UserDashboardPage: React.FC = () => {
   // Fetch 8 Ball Pool avatars list
   useEffect(() => {
     if (isAuthenticated && !isLoading && activeTab === 'accounts') {
-      console.log('🔄 useEffect triggered - fetching 8BP avatars');
+      logger.debug('🔄 useEffect triggered - fetching 8BP avatars');
       fetchEightBallPoolAvatars();
     }
   }, [isAuthenticated, isLoading, activeTab, fetchEightBallPoolAvatars]);
@@ -418,7 +398,7 @@ const UserDashboardPage: React.FC = () => {
         fetchUserInfo()
       ]);
     } catch (error) {
-      console.error('Error fetching data:', error);
+      logger.error('Error fetching data:', error);
       toast.error('Failed to load dashboard data');
     } finally {
       setIsLoadingData(false);
@@ -553,7 +533,7 @@ const UserDashboardPage: React.FC = () => {
         // Update state immediately with API response data
         const { activeAvatarUrl, registration } = response.data;
         
-        console.log('✅ Profile image upload response:', {
+        logger.debug('✅ Profile image upload response:', {
           activeAvatarUrl,
           profile_image_url: registration?.profile_image_url
         });
@@ -568,7 +548,7 @@ const UserDashboardPage: React.FC = () => {
                   profile_image_updated_at: registration.profile_image_updated_at,
                   activeAvatarUrl: activeAvatarUrl || acc.activeAvatarUrl
                 };
-                console.log('✅ Updated account state:', {
+                logger.debug('✅ Updated account state:', {
                   eightBallPoolId,
                   profile_image_url: updatedAccount.profile_image_url,
                   activeAvatarUrl: updatedAccount.activeAvatarUrl
@@ -619,7 +599,7 @@ const UserDashboardPage: React.FC = () => {
         // Update state immediately with API response data
         const { activeAvatarUrl, registration } = response.data;
         
-        console.log('✅ Leaderboard image upload response:', {
+        logger.debug('✅ Leaderboard image upload response:', {
           activeAvatarUrl,
           leaderboard_image_url: registration?.leaderboard_image_url
         });
@@ -634,7 +614,7 @@ const UserDashboardPage: React.FC = () => {
                   leaderboard_image_updated_at: registration.leaderboard_image_updated_at,
                   activeAvatarUrl: activeAvatarUrl || acc.activeAvatarUrl
                 };
-                console.log('✅ Updated account state:', {
+                logger.debug('✅ Updated account state:', {
                   eightBallPoolId,
                   leaderboard_image_url: updatedAccount.leaderboard_image_url,
                   activeAvatarUrl: updatedAccount.activeAvatarUrl
@@ -712,7 +692,7 @@ const UserDashboardPage: React.FC = () => {
     }
     
     if (isSelectingAvatar) {
-      console.log('⏳ Avatar selection already in progress, ignoring click');
+      logger.debug('⏳ Avatar selection already in progress, ignoring click');
       return;
     }
     
@@ -721,9 +701,9 @@ const UserDashboardPage: React.FC = () => {
     setLastAvatarClickTime(now);
     
     try {
-      console.log('🔵 Selecting 8BP avatar:', { eightBallPoolId, avatarFilename });
-      console.log('🔵 API Endpoint:', API_ENDPOINTS.USER_SELECT_8BP_AVATAR);
-      console.log('🔵 Full URL:', `${window.location.origin}${API_ENDPOINTS.USER_SELECT_8BP_AVATAR}`);
+      logger.debug('🔵 Selecting 8BP avatar:', { eightBallPoolId, avatarFilename });
+      logger.debug('🔵 API Endpoint:', API_ENDPOINTS.USER_SELECT_8BP_AVATAR);
+      logger.debug('🔵 Full URL:', `${window.location.origin}${API_ENDPOINTS.USER_SELECT_8BP_AVATAR}`);
       
       const response = await axios.put(API_ENDPOINTS.USER_SELECT_8BP_AVATAR, {
         eightBallPoolId,
@@ -734,31 +714,31 @@ const UserDashboardPage: React.FC = () => {
           'Content-Type': 'application/json'
         }
       }).catch((error) => {
-        console.error('❌ Avatar selection error:', error);
-        console.error('❌ Error response:', error.response?.data);
-        console.error('❌ Error status:', error.response?.status);
-        console.error('❌ Error message:', error.message);
+        logger.error('❌ Avatar selection error:', error);
+        logger.error('❌ Error response:', error.response?.data);
+        logger.error('❌ Error status:', error.response?.status);
+        logger.error('❌ Error message:', error.message);
         throw error;
       });
 
-      console.log('✅ 8BP avatar selection response:', response.data);
-      console.log('✅ 8BP avatar selection - activeAvatarUrl:', response.data.activeAvatarUrl);
-      console.log('✅ 8BP avatar selection - hasLeaderboardImage:', response.data.hasLeaderboardImage);
-      console.log('✅ 8BP avatar selection - success:', response.data.success);
-      console.log('✅ 8BP avatar selection - eight_ball_pool_avatar_filename:', response.data.eight_ball_pool_avatar_filename);
+      logger.debug('✅ 8BP avatar selection response:', response.data);
+      logger.debug('✅ 8BP avatar selection - activeAvatarUrl:', response.data.activeAvatarUrl);
+      logger.debug('✅ 8BP avatar selection - hasLeaderboardImage:', response.data.hasLeaderboardImage);
+      logger.debug('✅ 8BP avatar selection - success:', response.data.success);
+      logger.debug('✅ 8BP avatar selection - eight_ball_pool_avatar_filename:', response.data.eight_ball_pool_avatar_filename);
 
       if (response.data.success) {
-        console.log('✅ API call successful, updating state immediately');
-        console.log('✅ Response data:', response.data);
-        console.log('✅ activeAvatarUrl from API:', response.data.activeAvatarUrl);
-        console.log('✅ hasLeaderboardImage:', response.data.hasLeaderboardImage);
-        console.log('✅ Response avatar filename:', response.data.eight_ball_pool_avatar_filename);
-        console.log('✅ Requested avatar filename:', avatarFilename);
-        console.log('✅ Filenames match:', response.data.eight_ball_pool_avatar_filename === avatarFilename);
+        logger.debug('✅ API call successful, updating state immediately');
+        logger.debug('✅ Response data:', response.data);
+        logger.debug('✅ activeAvatarUrl from API:', response.data.activeAvatarUrl);
+        logger.debug('✅ hasLeaderboardImage:', response.data.hasLeaderboardImage);
+        logger.debug('✅ Response avatar filename:', response.data.eight_ball_pool_avatar_filename);
+        logger.debug('✅ Requested avatar filename:', avatarFilename);
+        logger.debug('✅ Filenames match:', response.data.eight_ball_pool_avatar_filename === avatarFilename);
         
         // Verify the response indicates the save was successful
         if (response.data.eight_ball_pool_avatar_filename && response.data.eight_ball_pool_avatar_filename !== avatarFilename) {
-          console.warn('⚠️ Response avatar filename does not match requested filename', {
+          logger.warn('⚠️ Response avatar filename does not match requested filename', {
             requested: avatarFilename,
             received: response.data.eight_ball_pool_avatar_filename
           });
@@ -777,7 +757,7 @@ const UserDashboardPage: React.FC = () => {
         
         const newRefreshKey = Date.now();
         
-        console.log('✅ Updating state with:', {
+        logger.debug('✅ Updating state with:', {
           eightBallPoolId,
           avatarFilename,
           newActiveAvatarUrl,
@@ -797,7 +777,7 @@ const UserDashboardPage: React.FC = () => {
                 leaderboard_image_url: acc.leaderboard_image_url, // Keep leaderboard image if it exists
                 profile_image_url: acc.profile_image_url // Keep profile image
               };
-              console.log('✅ Updated account state (8BP avatar selected):', {
+              logger.debug('✅ Updated account state (8BP avatar selected):', {
                 eightBallPoolId: updatedAcc.eightBallPoolId,
                 eight_ball_pool_avatar_filename: updatedAcc.eight_ball_pool_avatar_filename,
                 use_discord_avatar: updatedAcc.use_discord_avatar,
@@ -805,14 +785,14 @@ const UserDashboardPage: React.FC = () => {
                 fromResponse: response.data.eight_ball_pool_avatar_filename,
                 auto_toggled_discord_off: true
               });
-              console.log('🔄 Auto-toggled use_discord_avatar to false after selecting 8BP avatar');
+              logger.debug('🔄 Auto-toggled use_discord_avatar to false after selecting 8BP avatar');
               return updatedAcc;
             }
             return acc;
           });
           const foundAccount = updated.find(a => a.eightBallPoolId === eightBallPoolId);
-          console.log('✅ Updated linkedAccounts state, found account:', foundAccount);
-          console.log('✅ All accounts after update:', updated.map(a => ({
+          logger.debug('✅ Updated linkedAccounts state, found account:', foundAccount);
+          logger.debug('✅ All accounts after update:', updated.map(a => ({
             id: a.eightBallPoolId,
             avatar: a.eight_ball_pool_avatar_filename,
             use_discord_avatar: a.use_discord_avatar,
@@ -826,7 +806,7 @@ const UserDashboardPage: React.FC = () => {
           
           // Reset loading state immediately so user can click another avatar
           setIsSelectingAvatar(false);
-          console.log('✅ Reset isSelectingAvatar to false');
+          logger.debug('✅ Reset isSelectingAvatar to false');
         
         if (hasLeaderboardImage) {
           toast('8BP avatar selected, but leaderboard image takes priority. Delete leaderboard image to see the 8BP avatar.', {
@@ -840,7 +820,7 @@ const UserDashboardPage: React.FC = () => {
         // Wait before allowing auto-refresh to prevent overwriting
         setTimeout(() => {
           setIsUploadingAvatar(false);
-          console.log('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
+          logger.debug('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
         }, 2000);
         
         // Don't do background refresh - state is already correct and API confirmed save
@@ -853,16 +833,16 @@ const UserDashboardPage: React.FC = () => {
         // No background refresh - trust the API response
         // The avatar is saved in the database, and our local state is correct
       } else {
-        console.error('❌ API returned success=false:', response.data);
+        logger.error('❌ API returned success=false:', response.data);
         setIsSelectingAvatar(false);
         setIsUploadingAvatar(false);
         toast.error('Failed to select avatar. Please try again.');
       }
     } catch (error: any) {
-      console.error('❌ Error selecting 8BP avatar:', error);
+      logger.error('❌ Error selecting 8BP avatar:', error);
       setIsUploadingAvatar(false); // Reset on error
       setIsSelectingAvatar(false);
-      console.log('✅ Reset isSelectingAvatar to false (error case)');
+      logger.debug('✅ Reset isSelectingAvatar to false (error case)');
       toast.error(error.response?.data?.error || 'Failed to select avatar');
     }
   };
@@ -884,10 +864,10 @@ const UserDashboardPage: React.FC = () => {
   };
 
   const handleToggleDiscordAvatar = async (eightBallPoolId: string, useDiscordAvatar: boolean) => {
-    console.log('🔄 Toggle button clicked!', { eightBallPoolId, useDiscordAvatar });
+    logger.debug('🔄 Toggle button clicked!', { eightBallPoolId, useDiscordAvatar });
     
     if (isTogglingAvatar) {
-      console.log('⏸️ Already toggling, ignoring click');
+      logger.debug('⏸️ Already toggling, ignoring click');
       return;
     }
 
@@ -895,7 +875,7 @@ const UserDashboardPage: React.FC = () => {
     setIsUploadingAvatar(true); // Block WebSocket auto-refresh (same pattern as 8BP avatar selection)
     
     try {
-      console.log('📤 Sending toggle request to:', API_ENDPOINTS.USER_TOGGLE_DISCORD_AVATAR);
+      logger.debug('📤 Sending toggle request to:', API_ENDPOINTS.USER_TOGGLE_DISCORD_AVATAR);
       const response = await axios.put(API_ENDPOINTS.USER_TOGGLE_DISCORD_AVATAR, {
         eightBallPoolId,
         useDiscordAvatar
@@ -903,19 +883,19 @@ const UserDashboardPage: React.FC = () => {
         withCredentials: true
       });
 
-      console.log('✅ Toggle response:', response.data);
+      logger.debug('✅ Toggle response:', response.data);
 
       if (response.data.success) {
         // Update the local state immediately with the new value (same pattern as 8BP avatar)
         const newValue = response.data.useDiscordAvatar;
         const accountData = response.data.account;
         
-        console.log('🔄 Updating local state to:', newValue);
-        console.log('📊 Account data from response:', accountData);
-        console.log('📊 Response activeAvatarUrl:', accountData?.activeAvatarUrl);
-        console.log('📊 Response use_discord_avatar:', accountData?.use_discord_avatar);
-        console.log('📊 Response discordId:', accountData?.discordId);
-        console.log('📊 Response discord_avatar_hash:', accountData?.discord_avatar_hash);
+        logger.debug('🔄 Updating local state to:', newValue);
+        logger.debug('📊 Account data from response:', accountData);
+        logger.debug('📊 Response activeAvatarUrl:', accountData?.activeAvatarUrl);
+        logger.debug('📊 Response use_discord_avatar:', accountData?.use_discord_avatar);
+        logger.debug('📊 Response discordId:', accountData?.discordId);
+        logger.debug('📊 Response discord_avatar_hash:', accountData?.discord_avatar_hash);
         
         setLinkedAccounts(prevAccounts => {
           const updated = prevAccounts.map(account => {
@@ -926,10 +906,10 @@ const UserDashboardPage: React.FC = () => {
               if (accountData?.activeAvatarUrl) {
                 // Backend already computed it correctly - use it!
                 activeAvatarUrl = accountData.activeAvatarUrl;
-                console.log('✅ Using backend-computed activeAvatarUrl:', activeAvatarUrl);
+                logger.debug('✅ Using backend-computed activeAvatarUrl:', activeAvatarUrl);
               } else {
                 // Fallback: compute locally if backend didn't provide it
-                console.warn('⚠️ Backend did not provide activeAvatarUrl, computing locally');
+                logger.warn('⚠️ Backend did not provide activeAvatarUrl, computing locally');
                 
                 // Use response data if available, otherwise compute from current account state
                 const leaderboardUrl = accountData?.leaderboard_image_url || account.leaderboard_image_url;
@@ -942,7 +922,7 @@ const UserDashboardPage: React.FC = () => {
                 // Don't use old account state - the response has the updated values
                 const useDiscordAvatarFromResponse = accountData?.use_discord_avatar ?? newValue;
                 
-                console.log('🔍 Computing activeAvatarUrl locally with priority logic', {
+                logger.debug('🔍 Computing activeAvatarUrl locally with priority logic', {
                   hasLeaderboard: !!leaderboardUrl,
                   has8BPAvatar: !!eightBPAvatar,
                   useDiscordAvatar: newValue,
@@ -959,19 +939,19 @@ const UserDashboardPage: React.FC = () => {
                 // Priority: leaderboard > Discord (if enabled) > 8BP > profile
                 if (leaderboardUrl) {
                   activeAvatarUrl = leaderboardUrl;
-                  console.log('✅ Computed locally: Using leaderboard_image_url (highest priority)');
+                  logger.debug('✅ Computed locally: Using leaderboard_image_url (highest priority)');
                 } else if (useDiscordAvatarFromResponse && discordId) {
                   // Use utility function to handle both custom and default Discord avatars
                   activeAvatarUrl = getDiscordAvatarUrl(discordId, discordHash);
                   if (activeAvatarUrl) {
-                    console.log('✅ Computed locally: Using Discord avatar (use_discord_avatar=true, priority over 8BP)', {
+                    logger.debug('✅ Computed locally: Using Discord avatar (use_discord_avatar=true, priority over 8BP)', {
                       avatar_type: discordHash ? 'custom' : 'default',
                       url: activeAvatarUrl,
                       discordId,
                       hasHash: !!discordHash
                     });
                   } else {
-                    console.error('❌ Failed to generate Discord avatar URL locally!', { 
+                    logger.error('❌ Failed to generate Discord avatar URL locally!', { 
                       discordId, 
                       discordHash,
                       discordIdType: typeof discordId,
@@ -982,21 +962,21 @@ const UserDashboardPage: React.FC = () => {
                 } else if (!useDiscordAvatarFromResponse && eightBPAvatar) {
                   // Only use 8BP avatar if Discord avatar is NOT enabled
                   activeAvatarUrl = `/8bp-rewards/avatars/${eightBPAvatar}`;
-                  console.log('✅ Computed locally: Using 8BP avatar (use_discord_avatar=false)', {
+                  logger.debug('✅ Computed locally: Using 8BP avatar (use_discord_avatar=false)', {
                     useDiscordAvatarFromResponse,
                     newValue,
                     accountData_use_discord_avatar: accountData?.use_discord_avatar
                   });
                 } else if (profileImageUrl) {
                   activeAvatarUrl = profileImageUrl;
-                  console.log('✅ Computed locally: Using profile_image_url (lowest priority)');
+                  logger.debug('✅ Computed locally: Using profile_image_url (lowest priority)');
                 }
                 
                 // Final fallback to account's current activeAvatarUrl
                 activeAvatarUrl = activeAvatarUrl || account.activeAvatarUrl || null;
               }
               
-              console.log('🎯 Final activeAvatarUrl decision', {
+              logger.debug('🎯 Final activeAvatarUrl decision', {
                 fromBackend: accountData?.activeAvatarUrl || null,
                 final: activeAvatarUrl || null,
                 useDiscordAvatar: newValue,
@@ -1014,7 +994,7 @@ const UserDashboardPage: React.FC = () => {
                 leaderboard_image_url: accountData?.leaderboard_image_url || account.leaderboard_image_url
               };
               
-              console.log('✅ Updated account state:', {
+              logger.debug('✅ Updated account state:', {
                 eightBallPoolId: updatedAccount.eightBallPoolId,
                 use_discord_avatar: updatedAccount.use_discord_avatar,
                 activeAvatarUrl: updatedAccount.activeAvatarUrl,
@@ -1025,7 +1005,7 @@ const UserDashboardPage: React.FC = () => {
             }
             return account;
           });
-          console.log('✅ All accounts after update:', updated.map(a => ({
+          logger.debug('✅ All accounts after update:', updated.map(a => ({
             id: a.eightBallPoolId,
             use_discord_avatar: a.use_discord_avatar,
             activeAvatarUrl: a.activeAvatarUrl
@@ -1044,20 +1024,20 @@ const UserDashboardPage: React.FC = () => {
         // Wait before allowing auto-refresh to prevent overwriting (same pattern as 8BP avatar)
         setTimeout(() => {
           setIsUploadingAvatar(false);
-          console.log('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
+          logger.debug('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
         }, 2000);
         
         // Don't do background refresh - state is already correct and API confirmed save
         // Background refresh was causing the toggle to revert after a few seconds
         // The API response already confirms the save was successful
-        console.log('✅ Toggle complete, using optimistic update. No refresh needed.');
+        logger.debug('✅ Toggle complete, using optimistic update. No refresh needed.');
       } else {
         toast.error(response.data.error || 'Failed to toggle Discord avatar');
         setIsUploadingAvatar(false);
       }
     } catch (error: any) {
-      console.error('❌ Toggle error:', error);
-      console.error('❌ Error response:', error.response?.data);
+      logger.error('❌ Toggle error:', error);
+      logger.error('❌ Error response:', error.response?.data);
       toast.error(error.response?.data?.error || 'Failed to toggle Discord avatar');
       setIsUploadingAvatar(false);
     } finally {
@@ -1066,12 +1046,12 @@ const UserDashboardPage: React.FC = () => {
   };
 
   const handleToggleDiscordUsername = async (eightBallPoolId: string, useDiscordUsername: boolean) => {
-    console.log('🔄 Username toggle button clicked!', { eightBallPoolId, useDiscordUsername });
+    logger.debug('🔄 Username toggle button clicked!', { eightBallPoolId, useDiscordUsername });
     
     setIsUploadingAvatar(true); // Block WebSocket auto-refresh (same pattern as avatar toggle)
     
     try {
-      console.log('📤 Sending username toggle request to:', API_ENDPOINTS.USER_TOGGLE_DISCORD_USERNAME);
+      logger.debug('📤 Sending username toggle request to:', API_ENDPOINTS.USER_TOGGLE_DISCORD_USERNAME);
       const response = await axios.put(API_ENDPOINTS.USER_TOGGLE_DISCORD_USERNAME, {
         eightBallPoolId,
         useDiscordUsername
@@ -1079,15 +1059,15 @@ const UserDashboardPage: React.FC = () => {
         withCredentials: true
       });
 
-      console.log('✅ Username toggle response:', response.data);
+      logger.debug('✅ Username toggle response:', response.data);
 
       if (response.data.success) {
         // Update the local state immediately with the new value (same pattern as avatar toggle)
         const newValue = response.data.useDiscordUsername;
         const accountData = response.data.account;
         
-        console.log('🔄 Updating local state to:', newValue);
-        console.log('📊 Account data from response:', accountData);
+        logger.debug('🔄 Updating local state to:', newValue);
+        logger.debug('📊 Account data from response:', accountData);
         
         setLinkedAccounts(prevAccounts => {
           const updated = prevAccounts.map(account => {
@@ -1106,7 +1086,7 @@ const UserDashboardPage: React.FC = () => {
                 profile_image_url: accountData?.profile_image_url || account.profile_image_url
               };
               
-              console.log('✅ Updated account state (username toggle):', {
+              logger.debug('✅ Updated account state (username toggle):', {
                 eightBallPoolId: updatedAccount.eightBallPoolId,
                 use_discord_username: updatedAccount.use_discord_username,
                 activeUsername: updatedAccount.activeUsername,
@@ -1116,7 +1096,7 @@ const UserDashboardPage: React.FC = () => {
             }
             return account;
           });
-          console.log('✅ All accounts after username toggle update:', updated.map(a => ({
+          logger.debug('✅ All accounts after username toggle update:', updated.map(a => ({
             id: a.eightBallPoolId,
             use_discord_username: a.use_discord_username,
             activeUsername: a.activeUsername
@@ -1132,19 +1112,19 @@ const UserDashboardPage: React.FC = () => {
         // Wait before allowing auto-refresh to prevent overwriting (same pattern as avatar toggle)
         setTimeout(() => {
           setIsUploadingAvatar(false);
-          console.log('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
+          logger.debug('✅ Reset isUploadingAvatar to false - auto-refresh now allowed');
         }, 2000);
         
         // Don't do background refresh - state is already correct and API confirmed save
         // The API response already confirms the save was successful
-        console.log('✅ Username toggle complete, using optimistic update. No refresh needed.');
+        logger.debug('✅ Username toggle complete, using optimistic update. No refresh needed.');
       } else {
         toast.error(response.data.error || 'Failed to toggle Discord username');
         setIsUploadingAvatar(false);
       }
     } catch (error: any) {
-      console.error('❌ Username toggle error:', error);
-      console.error('❌ Error response:', error.response?.data);
+      logger.error('❌ Username toggle error:', error);
+      logger.error('❌ Error response:', error.response?.data);
       toast.error(error.response?.data?.error || 'Failed to toggle Discord username');
       setIsUploadingAvatar(false);
     }
@@ -1507,14 +1487,7 @@ const UserDashboardPage: React.FC = () => {
                       {/* Discord Avatar Toggle - Prominently displayed at top of Linked Accounts tab */}
                       {(() => {
                         const accountToUse = selectedAccount || linkedAccounts[0];
-                        console.log('🔍 Rendering toggle - accountToUse:', accountToUse);
-                        console.log('🔍 selectedAccount:', selectedAccount);
-                        console.log('🔍 linkedAccounts[0]:', linkedAccounts[0]);
-                        if (!accountToUse) {
-                          console.log('❌ No account to use, not rendering toggle');
-                          return null;
-                        }
-                        console.log('✅ Rendering toggle button for account:', accountToUse.eightBallPoolId);
+                        if (!accountToUse) return null;
                         return (
                           <div className="w-full mb-6">
                             <div className="flex items-center justify-between gap-4 p-5 rounded-xl bg-gradient-to-r from-primary-50/80 to-secondary-50/80 dark:from-dark-accent-navy/30 dark:to-dark-accent-ocean/30 border-2 border-primary-300 dark:border-dark-accent-blue/40 shadow-lg">
@@ -1537,26 +1510,16 @@ const UserDashboardPage: React.FC = () => {
                                   e.preventDefault();
                                   e.stopPropagation();
                                   
-                                  console.log('🖱️🖱️🖱️ TOGGLE BUTTON CLICKED! 🖱️🖱️🖱️');
-                                  
                                   const account = accountToUse || selectedAccount || (linkedAccounts.length > 0 ? linkedAccounts[0] : null);
                                   
                                   if (!account?.eightBallPoolId) {
-                                    console.error('❌ No account ID');
                                     toast.error('Account not found');
                                     return;
                                   }
                                   
-                                  if (isTogglingAvatar) {
-                                    console.log('⏸️ Already toggling');
-                                    return;
-                                  }
+                                  if (isTogglingAvatar) return;
                                   
-                                  const currentValue = Boolean(account.use_discord_avatar);
-                                  const newValue = !currentValue;
-                                  console.log('🔄 Toggling from', currentValue, 'to', newValue);
-                                  
-                                  handleToggleDiscordAvatar(account.eightBallPoolId, newValue);
+                                  handleToggleDiscordAvatar(account.eightBallPoolId, !account.use_discord_avatar);
                                 }}
                                 disabled={isTogglingAvatar}
                                 className={`relative inline-flex h-8 w-14 items-center rounded-full transition-colors focus:outline-none focus:ring-2 focus:ring-primary-500 dark:focus:ring-dark-accent-blue focus:ring-offset-2 ${
@@ -1729,10 +1692,10 @@ const UserDashboardPage: React.FC = () => {
                                       className="w-full h-full object-cover"
                                       title=""
                                       onLoad={() => {
-                                        console.log('Avatar image loaded:', selectedAccount.activeAvatarUrl);
+                                        logger.debug('Avatar image loaded:', selectedAccount.activeAvatarUrl);
                                       }}
                                       onError={(e) => {
-                                        console.error('Avatar image failed to load:', selectedAccount.activeAvatarUrl);
+                                        logger.error('Avatar image failed to load:', selectedAccount.activeAvatarUrl);
                                         (e.target as HTMLImageElement).style.display = 'none';
                                       }}
                                     />
@@ -1744,30 +1707,6 @@ const UserDashboardPage: React.FC = () => {
                                   </p>
                                 </div>
                               </div>
-
-                              {/* Discord Avatar Toggle */}
-                              {selectedAccount.discordId && (
-                                <div className="flex items-center justify-between p-3 rounded-lg bg-gray-50 dark:bg-background-dark-tertiary border border-gray-200 dark:border-white/5">
-                                  <div className="flex items-center gap-2">
-                                    <User className="w-4 h-4 text-gray-600 dark:text-gray-400" />
-                                    <span className="text-sm font-medium text-text-primary dark:text-white">
-                                      Use Discord Profile Picture
-                                    </span>
-                                  </div>
-                                  <button
-                                    onClick={() => handleToggleDiscordAvatar(selectedAccount.eightBallPoolId, !selectedAccount.use_discord_avatar)}
-                                    className={`relative inline-flex h-6 w-11 items-center rounded-full transition-colors ${
-                                      selectedAccount.use_discord_avatar ? 'bg-primary-600 dark:bg-dark-accent-blue' : 'bg-gray-300 dark:bg-gray-600'
-                                    }`}
-                                  >
-                                    <span
-                                      className={`inline-block h-4 w-4 transform rounded-full bg-white transition-transform ${
-                                        selectedAccount.use_discord_avatar ? 'translate-x-6' : 'translate-x-1'
-                                      }`}
-                                    />
-                                  </button>
-                                </div>
-                              )}
 
                               {/* Profile Image Upload */}
                               <div className="space-y-2">
@@ -1858,7 +1797,7 @@ const UserDashboardPage: React.FC = () => {
                                   )}
                                 </div>
                                 {(() => {
-                                  console.log('🔍 Avatar Selection Render:', {
+                                  logger.debug('🔍 Avatar Selection Render:', {
                                     isLoadingAvatars,
                                     avatarCount: eightBallPoolAvatars.length,
                                     selectedAccount: selectedAccount?.eightBallPoolId,
@@ -1880,22 +1819,22 @@ const UserDashboardPage: React.FC = () => {
                                           e.preventDefault();
                                           e.stopPropagation();
                                           
-                                          console.log('🟢🟢🟢 AVATAR BUTTON CLICKED 🟢🟢🟢');
-                                          console.log('🟢 SelectedAccount:', selectedAccount);
-                                          console.log('🟢 SelectedAccount eightBallPoolId:', selectedAccount?.eightBallPoolId);
-                                          console.log('🟢 Avatar filename:', avatar.filename);
-                                          console.log('🟢 SelectedAccount exists:', !!selectedAccount);
-                                          console.log('🟢 isSelectingAvatar:', isSelectingAvatar);
-                                          console.log('🟢 lastAvatarClickTime:', lastAvatarClickTime);
+                                          logger.debug('🟢🟢🟢 AVATAR BUTTON CLICKED 🟢🟢🟢');
+                                          logger.debug('🟢 SelectedAccount:', selectedAccount);
+                                          logger.debug('🟢 SelectedAccount eightBallPoolId:', selectedAccount?.eightBallPoolId);
+                                          logger.debug('🟢 Avatar filename:', avatar.filename);
+                                          logger.debug('🟢 SelectedAccount exists:', !!selectedAccount);
+                                          logger.debug('🟢 isSelectingAvatar:', isSelectingAvatar);
+                                          logger.debug('🟢 lastAvatarClickTime:', lastAvatarClickTime);
                                           
                                           if (!selectedAccount) {
-                                            console.error('❌ SelectedAccount is null/undefined');
+                                            logger.error('❌ SelectedAccount is null/undefined');
                                             toast.error('Account not found. Please refresh the page.');
                                             return;
                                           }
                                           
                                           if (!selectedAccount.eightBallPoolId) {
-                                            console.error('❌ SelectedAccount.eightBallPoolId is missing');
+                                            logger.error('❌ SelectedAccount.eightBallPoolId is missing');
                                             toast.error('Account ID not found. Please refresh the page.');
                                             return;
                                           }
@@ -1912,11 +1851,11 @@ const UserDashboardPage: React.FC = () => {
                                           }
                                           
                                           if (isSelectingAvatar) {
-                                            console.log('⏳ Already selecting avatar, ignoring click');
+                                            logger.debug('⏳ Already selecting avatar, ignoring click');
                                             return;
                                           }
                                           
-                                          console.log('🟢 Calling handleSelect8BPAvatar with:', {
+                                          logger.debug('🟢 Calling handleSelect8BPAvatar with:', {
                                             eightBallPoolId: selectedAccount.eightBallPoolId,
                                             avatarFilename: avatar.filename
                                           });
@@ -2059,13 +1998,13 @@ const UserDashboardPage: React.FC = () => {
                                   crossOrigin="anonymous"
                                   onError={(e) => {
                                     const target = e.target as HTMLImageElement;
-                                    console.error('Screenshot load error:', shot.screenshotUrl, 'Status:', target.complete ? 'complete' : 'incomplete');
+                                    logger.error('Screenshot load error:', shot.screenshotUrl, 'Status:', target.complete ? 'complete' : 'incomplete');
                                     target.style.display = 'none';
                                     const fallback = target.nextElementSibling as HTMLElement;
                                     if (fallback) fallback.style.display = 'flex';
                                   }}
                                   onLoad={() => {
-                                    console.log('Screenshot loaded:', shot.filename);
+                                    logger.debug('Screenshot loaded:', shot.filename);
                                   }}
                                 />
                                 <div className="absolute inset-0 w-full h-full flex items-center justify-center bg-gray-100 dark:bg-background-dark-tertiary" style={{ display: 'none' }}>
@@ -2225,7 +2164,7 @@ const UserDashboardPage: React.FC = () => {
                                 );
                               })}
                             </select>
-                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500">
+                            <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-gray-500 dark:text-gray-400">
                               <User className="w-4 h-4" />
                             </div>
                           </div>

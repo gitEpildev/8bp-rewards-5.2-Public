@@ -1,7 +1,11 @@
 import cron from 'node-cron';
 import path from 'path';
 import fs from 'fs';
+import { exec } from 'child_process';
+import { promisify } from 'util';
 import { logger } from './LoggerService';
+
+const execAsync = promisify(exec);
 import { DatabaseService } from './DatabaseService';
 import ValidationService from './ValidationService';
 const DiscordService = require('../../../../services/discord-service');
@@ -67,14 +71,70 @@ class SchedulerService {
       timezone: 'UTC'
     });
 
+    // Daily screenshot cleanup at 02:00 UTC (proof screenshots and verification-bot dir)
+    cron.schedule('0 2 * * *', async () => {
+      await this.runScreenshotCleanup();
+    }, {
+      timezone: 'UTC'
+    });
+
     // Calculate next run time
     this.calculateNextRun();
     
     logger.info('Scheduler initialized', {
       action: 'scheduler_init',
       schedule: '00:00, 06:00, 12:00, 18:00 UTC',
+      screenshotCleanup: '02:00 UTC daily',
       nextRun: this.nextRun?.toISOString()
     });
+  }
+
+  /**
+   * Run daily screenshot cleanup script (backend + verification-bot proof screenshots).
+   * Uses scripts/cleanup-old-screenshots.sh; RETENTION_DAYS and VERIFICATION_SCREENSHOT_RETENTION_DAYS from env.
+   */
+  private async runScreenshotCleanup(): Promise<void> {
+    const scriptName = 'cleanup-old-screenshots.sh';
+    const possiblePaths = [
+      path.join(process.cwd(), 'scripts', scriptName),
+      path.join(process.cwd(), '..', 'scripts', scriptName),
+      path.resolve(__dirname, '../../../../scripts', scriptName)
+    ];
+    let scriptPath: string | null = null;
+    for (const p of possiblePaths) {
+      if (fs.existsSync(p)) {
+        scriptPath = p;
+        break;
+      }
+    }
+    if (!scriptPath) {
+      logger.warn('Screenshot cleanup script not found, skipping', {
+        action: 'screenshot_cleanup_skip',
+        tried: possiblePaths,
+        cwd: process.cwd()
+      });
+      return;
+    }
+    try {
+      const { stdout, stderr } = await execAsync(`bash "${scriptPath}"`, {
+        timeout: 300000,
+        maxBuffer: 1024 * 1024,
+        env: {
+          ...process.env,
+          RETENTION_DAYS: process.env.RETENTION_DAYS || '30',
+          VERIFICATION_SCREENSHOT_RETENTION_DAYS: process.env.VERIFICATION_SCREENSHOT_RETENTION_DAYS || '7'
+        }
+      });
+      if (stdout) logger.info('Screenshot cleanup stdout', { action: 'screenshot_cleanup_stdout', stdout: stdout.slice(0, 500) });
+      if (stderr) logger.warn('Screenshot cleanup stderr', { action: 'screenshot_cleanup_stderr', stderr: stderr.slice(0, 500) });
+      logger.info('Screenshot cleanup completed', { action: 'screenshot_cleanup_done', scriptPath });
+    } catch (err: any) {
+      logger.error('Screenshot cleanup failed', {
+        action: 'screenshot_cleanup_error',
+        error: err?.message ?? String(err),
+        scriptPath
+      });
+    }
   }
 
   private calculateNextRun(): void {

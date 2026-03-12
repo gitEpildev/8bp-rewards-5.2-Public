@@ -39,3 +39,9 @@ ON CONFLICT (discord_id) DO UPDATE SET
 
 
 
+
+
+
+
+
+

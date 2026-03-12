@@ -105,6 +105,12 @@ export const API_ENDPOINTS = {
   ADMIN_DEREGISTRATION_REQUEST_APPROVE: (id: string) => `${API_BASE_URL}/admin/deregistration-requests/${id}/approve`,
   ADMIN_DEREGISTRATION_REQUEST_DENY: (id: string) => `${API_BASE_URL}/admin/deregistration-requests/${id}/deny`,
   
+  // Public Deregistration
+  DEREGISTER: `${API_BASE_URL}/deregister`,
+  ADMIN_PUBLIC_DEREGISTRATION_REQUESTS: `${API_BASE_URL}/admin/public-deregistration-requests`,
+  ADMIN_PUBLIC_DEREGISTRATION_APPROVE: (id: string) => `${API_BASE_URL}/admin/public-deregistration-requests/${id}/approve`,
+  ADMIN_PUBLIC_DEREGISTRATION_DENY: (id: string) => `${API_BASE_URL}/admin/public-deregistration-requests/${id}/deny`,
+
   // User Dashboard
   USER_LINKED_ACCOUNTS: `${API_BASE_URL}/user-dashboard/linked-accounts`,
   USER_SCREENSHOTS: `${API_BASE_URL}/user-dashboard/screenshots`,

@@ -45,7 +45,8 @@ import {
   ChevronDown,
   Network,
   MessageSquare,
-  X
+    UserMinus,
+    X
 } from 'lucide-react';
 import ClaimProgressTracker from '../components/ClaimProgressTracker';
 import VPSAuthModal from '../components/VPSAuthModal';
@@ -259,6 +260,11 @@ const AdminDashboardPage: React.FC = () => {
     'Other / System': false
   });
   const [expandedServices, setExpandedServices] = useState<{ [key: string]: boolean }>({});
+
+  // Public deregistration requests state
+  const [publicDeregRequests, setPublicDeregRequests] = useState<any[]>([]);
+  const [isLoadingPublicDeregRequests, setIsLoadingPublicDeregRequests] = useState(false);
+  const [publicDeregReviewNotes, setPublicDeregReviewNotes] = useState<{ [key: string]: string }>({});
   
   // Bot status state
   const [botStatus, setBotStatus] = useState<{
@@ -754,6 +760,41 @@ const AdminDashboardPage: React.FC = () => {
     }));
   };
 
+  const fetchPublicDeregRequests = useCallback(async () => {
+    setIsLoadingPublicDeregRequests(true);
+    try {
+      const response = await axios.get(API_ENDPOINTS.ADMIN_PUBLIC_DEREGISTRATION_REQUESTS, { withCredentials: true });
+      setPublicDeregRequests(response.data.requests || []);
+    } catch (error) {
+      logger.error('Failed to fetch public deregistration requests:', error);
+      toast.error('Failed to fetch deregistration requests');
+    } finally {
+      setIsLoadingPublicDeregRequests(false);
+    }
+  }, []);
+
+  const handleApprovePublicDereg = async (id: string) => {
+    if (!window.confirm('Are you sure you want to approve this request? The user will be removed from all tables.')) return;
+    try {
+      await axios.post(API_ENDPOINTS.ADMIN_PUBLIC_DEREGISTRATION_APPROVE(id), {}, { withCredentials: true });
+      toast.success('Deregistration request approved');
+      fetchPublicDeregRequests();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to approve request');
+    }
+  };
+
+  const handleDenyPublicDereg = async (id: string) => {
+    if (!window.confirm('Are you sure you want to deny this request?')) return;
+    try {
+      await axios.post(API_ENDPOINTS.ADMIN_PUBLIC_DEREGISTRATION_DENY(id), {}, { withCredentials: true });
+      toast.success('Deregistration request denied');
+      fetchPublicDeregRequests();
+    } catch (error: any) {
+      toast.error(error.response?.data?.error || 'Failed to deny request');
+    }
+  };
+
   const getLanguageIcon = (language: string) => {
     // Return empty string to remove ugly emojis
     return '';
@@ -1145,7 +1186,7 @@ const AdminDashboardPage: React.FC = () => {
           fetchScreenshotFolders();
           break;
         case 'verification-images':
-          fetchVerificationImages().catch(console.error);
+          fetchVerificationImages().catch((err) => logger.error('fetchVerificationImages failed', err));
           break;
         case 'terminal':
           checkTerminalAccess();
@@ -1155,6 +1196,9 @@ const AdminDashboardPage: React.FC = () => {
           break;
         case 'deregistration-requests':
           fetchDeregistrationRequests();
+          break;
+        case 'public-deregister-requests':
+          fetchPublicDeregRequests();
           break;
         case 'system-integration':
           fetchSystemIntegrationData();
@@ -1444,6 +1488,7 @@ const AdminDashboardPage: React.FC = () => {
               { id: 'registrations', label: 'Registrations', icon: Users },
               { id: 'users', label: 'User Management', icon: Shield },
               { id: 'deregistration-requests', label: 'Requested Deregistrations', icon: Send },
+              { id: 'public-deregister-requests', label: 'De-Register Requests', icon: UserMinus },
               { id: 'deregistered-users', label: 'Deregistered Users', icon: XCircle },
               { id: 'system-integration', label: 'System Integration Map', icon: Network },
               { id: 'logs', label: 'Logs', icon: FileText },
@@ -4819,6 +4864,99 @@ const AdminDashboardPage: React.FC = () => {
             className="space-y-6"
           >
             <SupportTicketsManager />
+          </motion.div>
+        )}
+
+        {activeTab === 'public-deregister-requests' && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ duration: 0.8, delay: 0.2 }}
+            className="space-y-6"
+          >
+            <div className="card">
+              <div className="flex items-center justify-between mb-6">
+                <h2 className="text-xl font-bold text-text-primary dark:text-text-dark-primary">
+                  Public De-Register Requests
+                </h2>
+                <button
+                  onClick={fetchPublicDeregRequests}
+                  className="btn btn-outline inline-flex items-center space-x-2"
+                >
+                  <RefreshCw className="w-4 h-4" />
+                  <span>Refresh</span>
+                </button>
+              </div>
+
+              {isLoadingPublicDeregRequests ? (
+                <div className="text-center py-8 text-text-secondary dark:text-text-dark-secondary">Loading...</div>
+              ) : publicDeregRequests.length === 0 ? (
+                <div className="text-center py-8 text-text-secondary dark:text-text-dark-secondary">
+                  No deregistration requests found.
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-sm">
+                    <thead>
+                      <tr className="border-b border-gray-200 dark:border-gray-700">
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Request #</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Full Name</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">8BP ID</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Email</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Date</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Status</th>
+                        <th className="text-left py-3 px-2 text-text-secondary dark:text-text-dark-secondary font-medium">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {publicDeregRequests.map((req: any) => (
+                        <tr key={req.id} className="border-b border-gray-100 dark:border-gray-800">
+                          <td className="py-3 px-2 font-mono text-primary-600 dark:text-primary-400">{req.request_number}</td>
+                          <td className="py-3 px-2 text-text-primary dark:text-text-dark-primary">{req.full_name}</td>
+                          <td className="py-3 px-2 font-mono text-text-primary dark:text-text-dark-primary">{req.eight_ball_pool_id}</td>
+                          <td className="py-3 px-2 text-text-secondary dark:text-text-dark-secondary">{req.email}</td>
+                          <td className="py-3 px-2 text-text-secondary dark:text-text-dark-secondary">
+                            {new Date(req.requested_at).toLocaleDateString()}
+                          </td>
+                          <td className="py-3 px-2">
+                            <span className={`px-2 py-1 rounded-full text-xs font-medium ${
+                              req.status === 'pending' ? 'bg-yellow-100 text-yellow-800 dark:bg-yellow-800 dark:text-yellow-100' :
+                              req.status === 'approved' ? 'bg-green-100 text-green-800 dark:bg-green-800 dark:text-green-100' :
+                              'bg-red-100 text-red-800 dark:bg-red-800 dark:text-red-100'
+                            }`}>
+                              {req.status.charAt(0).toUpperCase() + req.status.slice(1)}
+                            </span>
+                          </td>
+                          <td className="py-3 px-2">
+                            {req.status === 'pending' && (
+                              <div className="flex items-center space-x-2">
+                                <button
+                                  onClick={() => handleApprovePublicDereg(req.id)}
+                                  className="px-3 py-1 text-xs font-medium bg-green-100 text-green-700 hover:bg-green-200 dark:bg-green-800 dark:text-green-100 dark:hover:bg-green-700 rounded-md transition-colors"
+                                >
+                                  Approve
+                                </button>
+                                <button
+                                  onClick={() => handleDenyPublicDereg(req.id)}
+                                  className="px-3 py-1 text-xs font-medium bg-red-100 text-red-700 hover:bg-red-200 dark:bg-red-800 dark:text-red-100 dark:hover:bg-red-700 rounded-md transition-colors"
+                                >
+                                  Deny
+                                </button>
+                              </div>
+                            )}
+                            {req.status !== 'pending' && (
+                              <span className="text-xs text-text-secondary dark:text-text-dark-secondary">
+                                {req.reviewed_by ? `by ${req.reviewed_by}` : ''}
+                              </span>
+                            )}
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
           </motion.div>
         )}
     </div>

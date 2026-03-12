@@ -104,4 +104,3 @@ export async function handleFixRoles(message: Message): Promise<boolean> {
     return true;
   }
 }
-

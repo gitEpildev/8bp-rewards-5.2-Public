@@ -37,6 +37,7 @@ import postgresqlDbRoutes from './routes/postgresql-db';
 import validationRoutes from './routes/validation';
 import userDashboardRoutes from './routes/user-dashboard';
 import verificationRoutes from './routes/verification';
+import deregisterRoutes from './routes/deregister';
 
 // Import middleware
 import { errorHandler } from './middleware/errorHandler';
@@ -209,6 +210,8 @@ class Server {
     this.app.use('/8bp-rewards/api/heartbeat', heartbeatRoutes);
     this.app.use('/8bp-rewards/api/user-dashboard', userDashboardRoutes);
     this.app.use('/api/internal/verification', verificationRoutes);
+    this.app.use('/8bp-rewards/api', deregisterRoutes);
+    this.app.use('/api', deregisterRoutes);
 
     // Serve static files from React build (consolidated Docker setup)
     // Always serve frontend in production mode or if build exists

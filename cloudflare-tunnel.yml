@@ -7,8 +7,7 @@ tunnel: 8bp-rewards-tunnel
 # Format: credentials-file: /home/blake/.cloudflared/TUNNEL_UUID.json
 
 ingress:
-  # All traffic (frontend + backend API) now goes to backend port 2600
-  # Backend serves frontend static files under /8bp-rewards route
+  # All traffic (frontend + backend API) goes to backend port 2600
   - hostname: 8ballpool.website
     service: http://localhost:2600
     originRequest:

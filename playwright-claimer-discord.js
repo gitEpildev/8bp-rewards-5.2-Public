@@ -456,7 +456,7 @@ class EightBallPoolClaimer {
       let confirmationImagePath = screenshotPath;
       if (this.imageGenerator) {
         try {
-          const users = await this.dbService.getAllUsers();
+          const users = await dbService.getAllUsers();
           const user = users.find(u => u.eightBallPoolId === userId);
           const username = user?.username || 'Unknown User';
           
@@ -1204,7 +1204,7 @@ class EightBallPoolClaimer {
       
       try {
         // Try to get username from database
-        const users = await this.dbService.getAllUsers();
+        const users = await dbService.getAllUsers();
         const user = users.find(u => u.eightBallPoolId === userId);
         if (user) {
           username = user.username || 'Unknown User';

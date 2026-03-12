@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'framer-motion';
 import { useForm } from 'react-hook-form';
 import { toast } from 'react-hot-toast';
@@ -22,7 +22,31 @@ const ContactPage: React.FC = () => {
   const [isSuccess, setIsSuccess] = useState(false);
   const [selectedFiles, setSelectedFiles] = useState<FileWithPreview[]>([]);
   const [fileError, setFileError] = useState<string | null>(null);
-  
+  const [systemStatus, setSystemStatus] = useState<{ api: string; database: string; scheduler: string }>({
+    api: 'Checking...', database: 'Checking...', scheduler: 'Checking...'
+  });
+
+  useEffect(() => {
+    const checkStatus = async () => {
+      try {
+        const [statusRes, schedulerRes] = await Promise.allSettled([
+          axios.get(API_ENDPOINTS.STATUS, { timeout: 5000 }),
+          axios.get(API_ENDPOINTS.STATUS_SCHEDULER, { timeout: 5000 })
+        ]);
+        const statusData = statusRes.status === 'fulfilled' ? statusRes.value.data : null;
+        const schedulerData = schedulerRes.status === 'fulfilled' ? schedulerRes.value.data : null;
+        setSystemStatus({
+          api: statusData ? 'Online' : 'Unavailable',
+          database: statusData?.database?.connected ? 'Connected' : 'Disconnected',
+          scheduler: schedulerData?.status === 'running' ? 'Active' : schedulerData ? 'Inactive' : 'Unknown'
+        });
+      } catch {
+        setSystemStatus({ api: 'Unavailable', database: 'Unknown', scheduler: 'Unknown' });
+      }
+    };
+    checkStatus();
+  }, []);
+
   const {
     register,
     handleSubmit,
@@ -150,10 +174,10 @@ const ContactPage: React.FC = () => {
             <div className="w-16 h-16 bg-green-100 dark:bg-gradient-to-br dark:from-green-500 dark:to-green-600 rounded-full flex items-center justify-center mx-auto mb-4 shadow-lg dark:shadow-green-500/40">
               <CheckCircle className="w-8 h-8 text-green-600 dark:text-white" />
             </div>
-            <h2 className="text-2xl font-bold text-text-primary mb-2">
+            <h2 className="text-2xl font-bold text-text-primary dark:text-text-dark-primary mb-2">
               Message Sent!
             </h2>
-            <p className="text-text-secondary mb-6">
+            <p className="text-text-secondary dark:text-text-dark-secondary mb-6">
               Thank you for contacting us. We'll get back to you as soon as possible.
             </p>
             <button
@@ -439,22 +463,25 @@ const ContactPage: React.FC = () => {
             </div>
 
             <div className="card">
-              <h3 className="text-lg font-semibold text-text-primary mb-4">
+              <h3 className="text-lg font-semibold text-text-primary dark:text-text-dark-primary mb-4">
                 System Status
               </h3>
               <div className="space-y-2">
-                <div className="flex items-center justify-between">
-                  <span className="text-text-secondary">Backend API</span>
-                  <span className="text-green-600 text-sm font-medium">Online</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-secondary">Database</span>
-                  <span className="text-green-600 text-sm font-medium">Connected</span>
-                </div>
-                <div className="flex items-center justify-between">
-                  <span className="text-text-secondary">Scheduler</span>
-                  <span className="text-green-600 text-sm font-medium">Active</span>
-                </div>
+                {[
+                  { label: 'Backend API', value: systemStatus.api, ok: systemStatus.api === 'Online' },
+                  { label: 'Database', value: systemStatus.database, ok: systemStatus.database === 'Connected' },
+                  { label: 'Scheduler', value: systemStatus.scheduler, ok: systemStatus.scheduler === 'Active' },
+                ].map((item) => (
+                  <div key={item.label} className="flex items-center justify-between">
+                    <span className="text-text-secondary dark:text-text-dark-secondary">{item.label}</span>
+                    <span className={`text-sm font-medium ${
+                      item.value === 'Checking...' ? 'text-yellow-500' :
+                      item.ok ? 'text-green-600 dark:text-green-400' : 'text-red-500 dark:text-red-400'
+                    }`}>
+                      {item.value}
+                    </span>
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>

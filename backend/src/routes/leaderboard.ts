@@ -1,14 +1,14 @@
 import express from 'express';
 import { DatabaseService } from '../services/DatabaseService';
 import { logger } from '../services/LoggerService';
-import { getDiscordAvatarUrl } from '../utils/avatarUtils';
+import { getDiscordAvatarUrl, getRandom8BPAvatar } from '../utils/avatarUtils';
 
 const router = express.Router();
 const dbService = DatabaseService.getInstance();
 
-// Simple in-memory cache for leaderboard results (30-second TTL)
+// Simple in-memory cache for leaderboard results (60-second TTL to reduce lag)
 const leaderboardCache = new Map<string, { data: any; timestamp: number }>();
-const CACHE_TTL = 30000; // 30 seconds
+const CACHE_TTL = 60000; // 60 seconds
 
 /**
  * Clear the leaderboard cache - call this when verification data changes
@@ -23,8 +23,8 @@ export function clearLeaderboardCache(): void {
 // Get leaderboard
 router.get('/', async (req, res): Promise<void> => {
   try {
-    // Cache for 30 seconds to reduce load
-    res.set('Cache-Control', 'public, max-age=30');
+    // Cache for 60 seconds to reduce load and lag
+    res.set('Cache-Control', 'public, max-age=60');
     
     const timeframe = req.query.timeframe as string || '7d';
     const limit = parseInt(req.query.limit as string) || 50;
@@ -170,7 +170,14 @@ router.get('/', async (req, res): Promise<void> => {
         } else if (row.profile_image_url) {
           avatarUrl = row.profile_image_url;
         }
-        
+        // Default to random 8BP avatar when no avatar set (plan: leaderboard default to random assigned avatars)
+        if (!avatarUrl) {
+          const randomAvatar = getRandom8BPAvatar();
+          if (randomAvatar) {
+            avatarUrl = `/8bp-rewards/avatars/${randomAvatar}`;
+          }
+        }
+
         // Debug logging for specific user
         if (row.eight_ball_pool_id === '1826254746') {
           logger.info('Leaderboard avatar computation for GamingWithBlake', {

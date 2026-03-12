@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Menu, X, Home, UserPlus, Mail, Trophy, HelpCircle, LogIn, LogOut, User, Shield } from 'lucide-react';
+import { Menu, X, Home, UserPlus, UserMinus, Mail, Trophy, HelpCircle, LogIn, LogOut, User, Shield } from 'lucide-react';
 import { useAuth } from '../hooks/useAuth';
 import AnimatedBackground from './AnimatedBackground';
 import Footer from './Footer';
@@ -34,6 +34,7 @@ const Layout: React.FC<LayoutProps> = ({ children }) => {
   }> = [
     { name: 'Home', href: '/home', icon: Home },
     { name: 'Register', href: '/register', icon: UserPlus },
+    { name: 'Deregister', href: '/deregister', icon: UserMinus },
     { name: 'Contact', href: '/contact', icon: Mail },
     { name: 'Leaderboard', href: '/leaderboard', icon: Trophy },
     { name: 'FAQ', href: '/faq', icon: HelpCircle },

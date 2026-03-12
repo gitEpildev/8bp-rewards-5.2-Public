@@ -1,7 +1,18 @@
 // Lightweight client to auto-report module activity
 import axios from 'axios';
 
-const HEARTBEAT_URL = process.env.HEARTBEAT_URL || `${process.env.PUBLIC_URL || 'http://localhost:2600'}/8bp-rewards/api/heartbeat/beat`;
+// Build heartbeat URL correctly - prevent path duplication
+function getHeartbeatUrl(): string {
+  if (process.env.HEARTBEAT_URL) {
+    return process.env.HEARTBEAT_URL;
+  }
+  const publicUrl = process.env.PUBLIC_URL || 'http://localhost:2600';
+  // Remove any trailing slashes and ensure we don't duplicate /8bp-rewards
+  const base = publicUrl.replace(/\/+$/, '').replace(/\/8bp-rewards\/?$/, '');
+  return `${base}/8bp-rewards/api/heartbeat/beat`;
+}
+
+const HEARTBEAT_URL = getHeartbeatUrl();
 const DISABLE_HEARTBEAT = process.env.DISABLE_HEARTBEAT === 'true';
 
 type Options = { service?: string };

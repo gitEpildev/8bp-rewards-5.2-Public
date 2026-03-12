@@ -134,6 +134,96 @@ export class EmailNotificationService {
     }
   }
 
+  async sendDeregistrationConfirmation(email: string, requestNumber: string): Promise<boolean> {
+    return this.sendDeregistrationEmail(
+      email,
+      'Deregistration request received',
+      requestNumber,
+      'Your request has been received and is now pending review by the admin team. You will receive another email once the request has been approved or denied.',
+      '#667eea'
+    );
+  }
+
+  async sendDeregistrationApproved(email: string, requestNumber: string): Promise<boolean> {
+    return this.sendDeregistrationEmail(
+      email,
+      'Deregistration completed',
+      requestNumber,
+      'Your deregistration request has been approved. Your ID has now been removed from the system. Thank you.',
+      '#22c55e'
+    );
+  }
+
+  async sendDeregistrationDenied(email: string, requestNumber: string): Promise<boolean> {
+    return this.sendDeregistrationEmail(
+      email,
+      'Deregistration request update',
+      requestNumber,
+      'Your deregistration request has been reviewed and was not approved. If you believe this was an error, please contact support.',
+      '#ef4444'
+    );
+  }
+
+  private async sendDeregistrationEmail(
+    email: string,
+    subject: string,
+    requestNumber: string,
+    bodyText: string,
+    accentColor: string
+  ): Promise<boolean> {
+    try {
+      const mailOptions = {
+        from: process.env.MAIL_FROM,
+        to: email,
+        subject: `8BP Rewards - ${subject}`,
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+            <div style="background: linear-gradient(135deg, ${accentColor} 0%, #764ba2 100%); padding: 30px; text-align: center; border-radius: 10px 10px 0 0;">
+              <h1 style="color: white; margin: 0; font-size: 28px;">Deregistration Request</h1>
+            </div>
+            <div style="background-color: #ffffff; padding: 30px; border: 1px solid #e0e0e0; border-top: none; border-radius: 0 0 10px 10px;">
+              <h2 style="color: #333; margin-top: 0; font-size: 20px;">${subject}</h2>
+              <div style="background-color: #f7f9fc; border: 2px dashed ${accentColor}; border-radius: 8px; padding: 20px; text-align: center; margin: 25px 0;">
+                <div style="font-size: 12px; text-transform: uppercase; color: #666; margin-bottom: 8px;">Request Number</div>
+                <div style="font-size: 28px; font-weight: bold; letter-spacing: 4px; color: ${accentColor}; font-family: 'Courier New', monospace;">
+                  ${requestNumber}
+                </div>
+              </div>
+              <p style="color: #555; line-height: 1.6; font-size: 16px;">
+                ${bodyText}
+              </p>
+              <hr style="border: none; border-top: 1px solid #e0e0e0; margin: 25px 0;">
+              <p style="color: #999; font-size: 12px; text-align: center; margin: 0;">
+                <strong>8 Ball Pool Rewards System</strong><br>
+                This is an automated message, please do not reply.
+              </p>
+            </div>
+          </div>
+        `,
+        text: `${subject}\n\nRequest Number: ${requestNumber}\n\n${bodyText}\n\n---\n8 Ball Pool Rewards System\nThis is an automated message, please do not reply.`
+      };
+
+      const info = await this.transporter.sendMail(mailOptions);
+      logger.info('Deregistration email sent', {
+        action: 'deregistration_email_sent',
+        email,
+        requestNumber,
+        subject,
+        messageId: info.messageId
+      });
+      return true;
+    } catch (error: any) {
+      logger.error('Failed to send deregistration email', {
+        action: 'deregistration_email_error',
+        email,
+        requestNumber,
+        subject,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+      return false;
+    }
+  }
+
   /**
    * Verify if email service is configured
    * @returns boolean - true if SMTP is configured

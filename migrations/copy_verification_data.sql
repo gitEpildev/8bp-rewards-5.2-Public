@@ -131,3 +131,9 @@ WHERE (r.discord_id = v.discord_id OR r.eight_ball_pool_id = v.unique_id)
 
 
 
+
+
+
+
+
+

@@ -88,8 +88,11 @@ uploads/*.jpg
 uploads/*.jpeg
 !uploads/.gitkeep
 
-# Exclude verification bot generated screenshots
+# Exclude verification bot generated screenshots and images
 services/verification-bot/screenshots/*
+services/verification-bot/verifications/*.png
+services/verification-bot/verifications/*.jpg
+services/verification-bot/verifications/*.jpeg
 assets/images/*.png
 assets/images/*.jpg
 !assets/images/*example*

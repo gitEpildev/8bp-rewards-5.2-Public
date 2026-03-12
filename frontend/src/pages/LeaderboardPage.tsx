@@ -41,43 +41,38 @@ const LeaderboardPage: React.FC = () => {
   const [searchQuery, setSearchQuery] = useState('');
 
   const [avatarRefreshKey, setAvatarRefreshKey] = useState<number>(Date.now());
+  const [avatarErrors, setAvatarErrors] = useState<Set<string>>(new Set());
   const { socket } = useWebSocket({ autoConnect: true });
 
-  // Get avatar display - use avatarUrl from API if available, otherwise fallback
-  // Memoized to prevent unnecessary re-renders
   const getAvatarDisplay = useCallback((entry: LeaderboardEntry) => {
-    if (entry.avatarUrl) {
-      // Use the computed avatarUrl from the backend (respects priority)
-      // Only use avatarRefreshKey for cache-busting (no Date.now() or Math.random())
+    const initial = (entry.username || entry.user_id || 'U').charAt(0).toUpperCase();
+    const rankBg = entry.rank === 1 ? 'bg-yellow-500' :
+      entry.rank === 2 ? 'bg-gray-400' :
+      entry.rank === 3 ? 'bg-orange-500' :
+      'bg-primary-500';
+
+    if (entry.avatarUrl && !avatarErrors.has(entry.eightBallPoolId)) {
       return (
         <img
           key={`avatar-${entry.eightBallPoolId}`}
           src={`${entry.avatarUrl}?v=${avatarRefreshKey}`}
           alt={entry.username || entry.user_id}
           className="w-8 h-8 rounded-full object-cover border-2 border-white dark:border-background-dark-secondary"
-          onError={(e) => {
-            // Fallback to initial if image fails to load
-            const target = e.target as HTMLImageElement;
-            target.style.display = 'none';
-            const parent = target.parentElement;
-            if (parent && !parent.querySelector('.avatar-fallback')) {
-              const fallback = document.createElement('div');
-              fallback.className = `avatar-fallback w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white ${
-                entry.rank === 1 ? 'bg-yellow-500' :
-                entry.rank === 2 ? 'bg-gray-400' :
-                entry.rank === 3 ? 'bg-orange-500' :
-                'bg-primary-500'
-              }`;
-              fallback.textContent = (entry.username || entry.user_id || 'U').charAt(0).toUpperCase();
-              parent.appendChild(fallback);
-            }
+          onError={() => {
+            setAvatarErrors(prev => new Set(prev).add(entry.eightBallPoolId));
           }}
         />
       );
     }
-    // No avatar URL - show nothing
-    return null;
-  }, [avatarRefreshKey]);
+    return (
+      <div
+        key={`avatar-fallback-${entry.eightBallPoolId}`}
+        className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold text-white border-2 border-white dark:border-background-dark-secondary ${rankBg}`}
+      >
+        {initial}
+      </div>
+    );
+  }, [avatarRefreshKey, avatarErrors]);
 
   const timeframes = [
     { value: '1d', label: 'Last 24 Hours' },

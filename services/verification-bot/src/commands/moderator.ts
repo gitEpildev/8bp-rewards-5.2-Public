@@ -165,4 +165,3 @@ async function handleHelp(message: Message): Promise<boolean> {
   await message.reply({ embeds: [embed] });
   return true;
 }
-
